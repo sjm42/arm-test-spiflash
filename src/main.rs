@@ -10,6 +10,7 @@
 use core::fmt::Write; // for pretty formatting of the serial output
 use cortex_m_rt::entry;
 use embedded_hal::digital::v2::OutputPin;
+use hal::pac::USART1;
 use panic_halt as _;
 
 use stm32f4xx_hal as hal;
@@ -17,7 +18,7 @@ use stm32f4xx_hal as hal;
 use hal::spi::{Mode, Phase, Polarity};
 use hal::{gpio::*, pac, prelude::*, serial, spi::Spi};
 
-// use spi_memory::prelude::*;
+use spi_memory::prelude::*;
 use spi_memory::series25::Flash;
 
 // Flash chip size in Mbit.
@@ -80,9 +81,9 @@ fn main() -> ! {
             (sck, miso, mosi),
             Mode {
                 polarity: Polarity::IdleLow,
-                phase: Phase::CaptureOnSecondTransition,
+                phase: Phase::CaptureOnFirstTransition,
             },
-            1000.khz(),
+            500.khz(),
             clocks,
         )
     };
@@ -96,8 +97,29 @@ fn main() -> ! {
     let _ = write!(ser_tx, "Hello!\r\n");
 
     let _ = write!(ser_tx, "Read JEDEC id...\r\n");
-    let id = flash.read_jedec_id().unwrap();
-    let _ = write!(ser_tx, "Flash id: {:?}\r\n", id);
+    let jedec_id = flash.read_jedec_id().unwrap();
+    let _ = write!(ser_tx, "Flash jedec id: {:?}\r\n", jedec_id);
+
+    let _ = write!(
+        ser_tx,
+        "Cont count: {:?}\r\n",
+        jedec_id.continuation_count()
+    );
+    let _ = write!(ser_tx, "MFR code: {:?}\r\n", jedec_id.mfr_code());
+    let _ = write!(ser_tx, "Device id: {:?}\r\n", jedec_id.device_id());
+
+    let mut buf: [u8; 256] = [0; 256];
+    for i in 0..=255 {
+        buf[i] = i as u8;
+    }
+
+    let _ = write!(ser_tx, "Flash erase...\r\n");
+    flash.erase_sectors(0, 1).unwrap();
+    let _ = write!(ser_tx, "Flash write...\r\n");
+    flash.write_bytes(0, &mut buf).unwrap();
+    let _ = write!(ser_tx, "Flash read:\r\n");
+    flash.read(0, &mut buf).unwrap();
+    hex_dump(&mut ser_tx, &buf);
 
     let mut i = 0u8;
     loop {
@@ -111,6 +133,27 @@ fn main() -> ! {
             delay.delay_ms(400_u32);
         }
         delay.delay_ms(1000_u32);
+    }
+}
+
+const ROW_SZ: usize = 24;
+
+fn hex_dump(serial: &mut serial::Tx<USART1>, buf: &[u8]) {
+    let mut offset: usize = 0;
+    let len = buf.len();
+    let mut stop = false;
+    while !stop {
+        let mut end = offset + ROW_SZ;
+        if end > len {
+            stop = true;
+            end = len;
+        }
+        let slice = &buf[offset..end];
+        offset += ROW_SZ;
+        for c in slice {
+            let _ = write!(serial, "{:02x} ", c);
+        }
+        let _ = write!(serial, "\r\n");
     }
 }
 
