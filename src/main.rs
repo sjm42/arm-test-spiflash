@@ -115,8 +115,13 @@ fn main() -> ! {
 
     let _ = write!(ser_tx, "Flash erase...\r\n");
     flash.erase_sectors(0, 1).unwrap();
+
+    let _ = write!(ser_tx, "Hex dump of write buf:\r\n");
+    hex_dump(&mut ser_tx, &buf);
+
     let _ = write!(ser_tx, "Flash write...\r\n");
     flash.write_bytes(0, &mut buf).unwrap();
+
     let _ = write!(ser_tx, "Flash read:\r\n");
     flash.read(0, &mut buf).unwrap();
     hex_dump(&mut ser_tx, &buf);
