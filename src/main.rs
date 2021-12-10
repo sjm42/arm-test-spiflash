@@ -94,8 +94,6 @@ fn main() -> ! {
     // On Blackpill stm32f411 user led is on PC13, active low
     let mut led = pc.pc13.into_push_pull_output().erase();
 
-    let _ = write!(ser_tx, "Hello!\r\n");
-
     let _ = write!(ser_tx, "Read JEDEC id...\r\n");
     let jedec_id = flash.read_jedec_id().unwrap();
     let _ = write!(ser_tx, "Flash jedec id: {:?}\r\n", jedec_id);
@@ -113,14 +111,17 @@ fn main() -> ! {
         buf[i] = i as u8;
     }
 
-    let _ = write!(ser_tx, "Flash erase...\r\n");
-    flash.erase_sectors(0, 1).unwrap();
+    #[cfg(write_flash)]
+    {
+        let _ = write!(ser_tx, "Flash erase...\r\n");
+        flash.erase_sectors(0, 1).unwrap();
 
-    let _ = write!(ser_tx, "Hex dump of write buf:\r\n");
-    hex_dump(&mut ser_tx, &buf);
+        let _ = write!(ser_tx, "Hex dump of write buf:\r\n");
+        hex_dump(&mut ser_tx, &buf);
 
-    let _ = write!(ser_tx, "Flash write...\r\n");
-    flash.write_bytes(0, &mut buf).unwrap();
+        let _ = write!(ser_tx, "Flash write...\r\n");
+        flash.write_bytes(0, &mut buf).unwrap();
+    }
 
     let _ = write!(ser_tx, "Flash read:\r\n");
     flash.read(0, &mut buf).unwrap();
