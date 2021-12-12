@@ -6,8 +6,10 @@ name = "blackpill-spiflash"
 version = "0.1.0"
 
 [features]
-default = ["black_pill"]
+default = ["black_pill", "write_flash"]
+# default = ["black_pill"]
 black_pill = ["stm32f4xx-hal"]
+write_flash = []
 
 [dependencies.stm32f4xx-hal]
 optional = true
@@ -22,7 +24,8 @@ cortex-m-semihosting = "0"
 embedded-hal = "0"
 panic-halt = "0"
 
-spi-memory = { git = "https://github.com/bootstrap-prime/spi-memory.git" }
+# spi-memory = { git = "https://github.com/bootstrap-prime/spi-memory.git" }
+spi-memory = { path = "../spi-memory" }
 # spi-memory = "0"
 # nb = "1"
 

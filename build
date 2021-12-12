@@ -4,34 +4,15 @@ set -x
 
 usage()
 {
-    echo "Usage: $0 <bluepill | | blacKpill | nucleo_f411> <build | clippy | flash>"
+    echo "Usage: $0 <build | clippy | flash>"
     exit 1
 }
 
+tgt="thumbv7em-none-eabihf"
+chip="STM32F411CEUx"
+
+flags="--release --target $tgt"
 case "$1" in
-blackpill|k*)
-    feat="black_pill"
-    tgt="thumbv7em-none-eabihf"
-    chip="STM32F411CEUx"
-    ;;
-b*)
-    feat="blue_pill"
-    tgt="thumbv7m-none-eabi"
-    chip="STM32F103C8"
-    ;;
-
-n*)
-    feat="nucleo_f411"
-    tgt="thumbv7em-none-eabihf"
-    chip="STM32F411RETx"
-    ;;
-*)
-    usage
-    ;;
-esac
-
-flags="--release --no-default-features --features $feat --target $tgt"
-case "$2" in
 b*)
     set -x
     cargo build $flags
