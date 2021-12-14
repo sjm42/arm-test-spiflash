@@ -26,7 +26,7 @@ use spi_memory::series25::Flash;
 // Size of the flash chip in bytes.
 // const SIZE_IN_BYTES: u32 = (MEGABITS * 1024 * 1024) / 8;
 
-const MY_ADDR: u32 = 65536;
+const MY_ADDR: u32 = 32768;
 
 #[entry]
 fn main() -> ! {
@@ -91,7 +91,7 @@ fn main() -> ! {
                 polarity: Polarity::IdleLow,
                 phase: Phase::CaptureOnFirstTransition,
             },
-            100.mhz(),
+            1.mhz(),
             clocks,
         )
     };
@@ -139,14 +139,16 @@ fn main() -> ! {
         serpr!(ser_tx, "- status: {:?}\r\n", st);
 
         serpr!(ser_tx, "Flash write...\r\n");
-        // flash.write_bytes(MY_ADDR, &mut buf).unwrap();
+        flash.write_bytes(MY_ADDR, &mut buf).unwrap();
 
-        for (i, c) in buf.iter().enumerate() {
-            let mut bytes = [*c];
-            flash.write_bytes(MY_ADDR + i as u32, &mut bytes).unwrap();
-            serpr!(ser_tx, "{:02x} ", c);
-        }
-        serpr!(&mut ser_tx, "\r\n");
+        /*
+                for (i, c) in buf.iter().enumerate() {
+                    let mut bytes = [*c];
+                    flash.write_bytes(MY_ADDR + i as u32, &mut bytes).unwrap();
+                    serpr!(ser_tx, "{:02x} ", c);
+                }
+                serpr!(&mut ser_tx, "\r\n");
+        */
 
         serpr!(ser_tx, "Hex dump of write buf:\r\n");
         hex_dump(&mut ser_tx, &buf);
