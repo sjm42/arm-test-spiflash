@@ -10,23 +10,18 @@
 use core::fmt::Write; // for pretty formatting of the serial output
 use cortex_m_rt::entry;
 use embedded_hal::digital::v2::OutputPin;
-use hal::pac::USART1;
 use panic_halt as _;
 
 use stm32f4xx_hal as hal;
 
+use hal::pac::USART1;
 use hal::spi::{Mode, Phase, Polarity};
 use hal::{gpio::*, pac, prelude::*, serial, spi::Spi};
 
 use spi_memory::prelude::*;
 use spi_memory::series25::Flash;
 
-// Flash chip size in Mbit.
-// const MEGABITS: u32 = 64;
-// Size of the flash chip in bytes.
-// const SIZE_IN_BYTES: u32 = (MEGABITS * 1024 * 1024) / 8;
-
-const MY_ADDR: u32 = 32768;
+const MY_ADDR: u32 = 0x02_08_00;
 
 #[entry]
 fn main() -> ! {
@@ -47,14 +42,22 @@ fn main() -> ! {
     let pa = dp.GPIOA.split();
     let pc = dp.GPIOC.split();
 
-    // Setup system clock to 100 MHz
-    let clocks = rcc.cfgr.sysclk(100.mhz()).freeze();
+    // Setup system clock to 72 MHz
+    let sysclk = 72;
+    let clocks = rcc.cfgr.sysclk(sysclk.mhz()).freeze();
+
     // Create a delay abstraction based on SysTick
     let mut delay = hal::delay::Delay::new(cp.SYST, &clocks);
 
     // Clock outputs are as alt functions on MCO1=PA8, MCO2=PC9
     let _mco1 = pa.pa8.into_alternate::<0>().set_speed(Speed::VeryHigh);
     let _mco2 = pc.pc9.into_alternate::<0>().set_speed(Speed::VeryHigh);
+
+    // On Blackpill stm32f411 user led is on PC13, active low
+    let mut led = pc.pc13.into_push_pull_output().erase();
+
+    // User button on Blackpill is on PA0, active low
+    let button = pa.pa0.into_pull_up_input();
 
     let ser_tx_pin = pa.pa9.into_alternate::<7>();
     let _ser_rx_pin = pa.pa10.into_alternate::<7>();
@@ -68,7 +71,14 @@ fn main() -> ! {
             {let _ = write!($ser, $($arg),*); }
     }
 
-    serpr!(ser_tx, "\r\n*** Starting spiflash\r\n");
+    serpr!(ser_tx, "\r\n\n*** Waiting for button...\r\n");
+
+    while button.is_high() {
+        delay.delay_ms(100u32);
+    }
+
+    serpr!(ser_tx, "\r\n\n*** Starting spiflash\r\n");
+    serpr!(ser_tx, "\r\nRunning with {} MHz sysclk\r\n", sysclk);
     serpr!(ser_tx, "Configure cs...\r\n");
     // https://docs.zephyrproject.org/2.6.0/boards/arm/blackpill_f411ce/doc/index.html
     // SPI1 CS/SCK/MISO/MOSI : PA4/PA5/PA6/PA7 (Routed to footprint for external flash)
@@ -77,6 +87,13 @@ fn main() -> ! {
         cs.set_high(); // deselect
         cs
     };
+
+    let mut buf = [0u8; 256];
+    for (i, b) in buf.iter_mut().enumerate() {
+        *b = i as u8;
+    }
+    serpr!(ser_tx, "Hex dump of write buf:\r\n");
+    hex_dump(&mut ser_tx, &buf);
 
     serpr!(ser_tx, "Init spi...\r\n");
     let spi = {
@@ -88,101 +105,71 @@ fn main() -> ! {
             dp.SPI1,
             (sck, miso, mosi),
             Mode {
-                polarity: Polarity::IdleLow,
-                phase: Phase::CaptureOnFirstTransition,
+                polarity: Polarity::IdleHigh,
+                phase: Phase::CaptureOnSecondTransition,
             },
-            1.mhz(),
+            16.mhz(),
             clocks,
         )
     };
 
     serpr!(ser_tx, "Flash init...\r\n");
-    let mut flash = Flash::init(spi, cs).unwrap();
+    let delay_us = |us| delay.delay_us(us);
+    // let delay_us = |_us| ();
+    let mut flash = Flash::init(spi, cs, delay_us).unwrap();
 
-    let mut st = flash.read_status().unwrap();
-    serpr!(ser_tx, "- status: {:?}\r\n", st);
-
-    // On Blackpill stm32f411 user led is on PC13, active low
-    let mut led = pc.pc13.into_push_pull_output().erase();
+    serpr!(ser_tx, "Flash reset...\r\n");
+    flash.reset_device().unwrap();
 
     serpr!(ser_tx, "Read JEDEC id...\r\n");
     let jedec_id = flash.read_jedec_id().unwrap();
     serpr!(ser_tx, "Flash jedec id: {:?}\r\n", jedec_id);
 
-    st = flash.read_status().unwrap();
-    serpr!(ser_tx, "- status: {:?}\r\n", st);
-
-    serpr!(
-        ser_tx,
-        "Cont count: {:?}\r\n",
-        jedec_id.continuation_count()
-    );
-    serpr!(ser_tx, "MFR code: {:?}\r\n", jedec_id.mfr_code());
-    serpr!(ser_tx, "Device id: {:?}\r\n", jedec_id.device_id());
-
-    // let mut buf = [0u8; 256];
-    let mut buf = [0u8; 64];
-
     #[cfg(feature = "write_flash")]
     {
-        for (i, b) in buf.iter_mut().enumerate() {
-            *b = i as u8;
-        }
-
-        serpr!(ser_tx, "Hex dump of write buf:\r\n");
-        hex_dump(&mut ser_tx, &buf);
-
+        serpr!(ser_tx, "Using flash address: {:06x}\r\n", MY_ADDR);
         serpr!(ser_tx, "Flash erase...\r\n");
-        flash.erase_sectors(MY_ADDR, 1).unwrap();
-
-        st = flash.read_status().unwrap();
-        serpr!(ser_tx, "- status: {:?}\r\n", st);
+        let mut w = flash.erase_sectors(MY_ADDR, 1).unwrap();
+        serpr!(ser_tx, "Wait cycles: {}\r\n", w);
 
         serpr!(ser_tx, "Flash write...\r\n");
-        flash.write_bytes(MY_ADDR, &mut buf).unwrap();
-
-        /*
-                for (i, c) in buf.iter().enumerate() {
-                    let mut bytes = [*c];
-                    flash.write_bytes(MY_ADDR + i as u32, &mut bytes).unwrap();
-                    serpr!(ser_tx, "{:02x} ", c);
-                }
-                serpr!(&mut ser_tx, "\r\n");
-        */
-
-        serpr!(ser_tx, "Hex dump of write buf:\r\n");
-        hex_dump(&mut ser_tx, &buf);
+        w = flash.write_bytes(MY_ADDR, &mut buf).unwrap();
+        serpr!(ser_tx, "Wait cycles: {}\r\n", w);
     }
 
-    st = flash.read_status().unwrap();
-    serpr!(ser_tx, "- status: {:?}\r\n", st);
-
+    buf.iter_mut().map(|b| *b = 0).count();
     serpr!(ser_tx, "Flash read dump:\r\n");
     flash.read(MY_ADDR, &mut buf).unwrap();
     hex_dump(&mut ser_tx, &buf);
 
-    st = flash.read_status().unwrap();
-    serpr!(ser_tx, "- status: {:?}\r\n", st);
-
-    serpr!(ser_tx, "Flash read byte by byte:\r\n");
-    let mut buf1: [u8; 1] = [0; 1];
-    let mut addr: u32 = 0;
-    let mut n_row: usize = 0;
+    serpr!(ser_tx, "Flash read word by word:\r\n");
+    let mut buf1 = [0u8; 4];
+    let mut addr = 0u32;
+    let mut n_row = 0usize;
     while addr < buf.len() as u32 {
+        buf1.iter_mut().map(|b| *b = 0).count();
         flash.read(MY_ADDR + addr, &mut buf1).unwrap();
-        let _ = write!(&mut ser_tx, "{:02x} ", buf1[0]);
-        n_row += 1;
+        serpr!(
+            ser_tx,
+            "{:02x}{:02x}{:02x}{:02x} ",
+            buf1[0],
+            buf1[1],
+            buf1[2],
+            buf1[3]
+        );
+        n_row += 4;
         if n_row >= ROW_SZ {
             serpr!(&mut ser_tx, "\r\n");
             n_row = 0;
         }
-        addr += 1;
+        addr += 4;
     }
     serpr!(&mut ser_tx, "\r\n");
 
-    st = flash.read_status().unwrap();
-    serpr!(ser_tx, "- status: {:?}\r\n", st);
+    // st = flash.read_status().unwrap();
+    // serpr!(ser_tx, "- status: {:?}\r\n", st);
 
+    delay.delay_ms(1_000u32);
     let mut i = 0u8;
     loop {
         serpr!(ser_tx, "{} ", i);

@@ -23,9 +23,9 @@ cortex-m-rt = "0"
 cortex-m-semihosting = "0"
 embedded-hal = "0"
 panic-halt = "0"
-
+spi-memory = { git = "https://github.com/sjm42/spi-memory.git" }
 # spi-memory = { git = "https://github.com/bootstrap-prime/spi-memory.git" }
-spi-memory = { path = "../spi-memory" }
+# spi-memory = { path = "../spi-memory" }
 # spi-memory = "0"
 # nb = "1"
 
