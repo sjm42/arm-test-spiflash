@@ -14,6 +14,7 @@ use panic_halt as _;
 
 use stm32f4xx_hal as hal;
 
+use hal::delay::Delay;
 use hal::pac::USART1;
 use hal::spi::{Mode, Phase, Polarity};
 use hal::{gpio::*, pac, prelude::*, serial, spi::Spi};
@@ -32,7 +33,7 @@ fn main() -> ! {
     // With 100MHz sysclk we should see 8/5 = 1.6 MHz on MCO1 and 100/5 = 20MHz on MCO2
     dp.RCC.cfgr.modify(|_r, w| {
         w.mco1pre().div5();
-        w.mco1().hsi();
+        w.mco1().hse();
         w.mco2pre().div5();
         w.mco2().sysclk();
         w
@@ -64,7 +65,7 @@ fn main() -> ! {
 
     // default is 115200 bps, 8N1
     let ser_cfg = serial::config::Config::default().wordlength_8();
-    let mut ser_tx = serial::Serial::tx(dp.USART1, ser_tx_pin, ser_cfg, clocks).unwrap();
+    let mut ser_tx = serial::Serial::tx(dp.USART1, ser_tx_pin, ser_cfg, &clocks).unwrap();
 
     macro_rules! serpr {
         ($ser:expr, $($arg : expr), *) =>
@@ -109,14 +110,12 @@ fn main() -> ! {
                 phase: Phase::CaptureOnSecondTransition,
             },
             16.mhz(),
-            clocks,
+            &clocks,
         )
     };
-
+    let spi_delay = Delay::tim5(dp.TIM5, &clocks);
     serpr!(ser_tx, "Flash init...\r\n");
-    let delay_us = |us| delay.delay_us(us);
-    // let delay_us = |_us| ();
-    let mut flash = Flash::init(spi, cs, delay_us).unwrap();
+    let mut flash = Flash::init(spi, cs, spi_delay).unwrap();
 
     serpr!(ser_tx, "Flash reset...\r\n");
     flash.reset_device().unwrap();

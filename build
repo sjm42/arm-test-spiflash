@@ -1,17 +1,17 @@
 #!/bin/bash
 set -e
-set -x
+#set -x
 
 usage()
 {
-    echo "Usage: $0 <build | clippy | flash>"
+    echo "Usage: $0 <build | clippy | flash | dfu>"
     exit 1
 }
 
 tgt="thumbv7em-none-eabihf"
 chip="STM32F411CEUx"
-
 flags="--release --target $tgt"
+
 case "$1" in
 b*)
     set -x
@@ -24,6 +24,16 @@ c*)
 f*)
     set -x
     cargo flash $flags --chip $chip
+    ;;
+d)
+    set -x
+    cargo objcopy $flags -- -O binary target/out.bin
+    set +x
+    echo Boot the card in DFU mode and press Enter.
+    read
+    set -x
+    dfu-util -a0 -s 0x08000000 -D target/out.bin
+    set +x
     ;;
 *)
     usage
