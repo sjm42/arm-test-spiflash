@@ -362,7 +362,7 @@ dependencies = [
 [[package]]
 name = "stm32f4xx-hal"
 version = "0.13.1"
-source = "git+https://github.com/stm32-rs/stm32f4xx-hal.git#b0479f04919872e820c0aabe9ac9bcc09a4dba6e"
+source = "git+https://github.com/stm32-rs/stm32f4xx-hal.git#84ef99190803499f573c6af64433935828d4a8e9"
 dependencies = [
  "bare-metal 1.0.0",
  "bitflags",
