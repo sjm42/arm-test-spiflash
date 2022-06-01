@@ -54,7 +54,7 @@ checksum = "bef38d45163c2f1dde094a7dfd33ccf595c92905c8f8f4fdc18d06fb1037718a"
 name = "blackpill-spiflash"
 version = "0.1.0"
 dependencies = [
- "cortex-m 0.7.4",
+ "cortex-m 0.7.5",
  "cortex-m-rt",
  "cortex-m-semihosting",
  "embedded-hal 0.2.7",
@@ -72,15 +72,15 @@ dependencies = [
  "aligned",
  "bare-metal 0.2.5",
  "bitfield",
- "cortex-m 0.7.4",
+ "cortex-m 0.7.5",
  "volatile-register",
 ]
 
 [[package]]
 name = "cortex-m"
-version = "0.7.4"
+version = "0.7.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "37ff967e867ca14eba0c34ac25cd71ea98c678e741e3915d923999bb2fe7c826"
+checksum = "cd20d4ac4aa86f4f75f239d59e542ef67de87cce2c282818dc6e84155d3ea126"
 dependencies = [
  "bare-metal 0.2.5",
  "bitfield",
@@ -114,7 +114,7 @@ version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c23234600452033cc77e4b761e740e02d2c4168e11dbf36ab14a0f58973592b0"
 dependencies = [
- "cortex-m 0.7.4",
+ "cortex-m 0.7.5",
 ]
 
 [[package]]
@@ -329,7 +329,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "379f030a0586d0aa3574cb6497392142ddf125c8146b7b580b4b6b46db9d7dc9"
 dependencies = [
  "bare-metal 1.0.0",
- "cortex-m 0.7.4",
+ "cortex-m 0.7.5",
  "cortex-m-rt",
  "vcell",
 ]
@@ -342,7 +342,7 @@ checksum = "0dec85aed466acc6fcd7f2f2cc01b40e7ed54b50cc0a723f3c78b0edf9e4841a"
 dependencies = [
  "bare-metal 1.0.0",
  "bitflags",
- "cortex-m 0.7.4",
+ "cortex-m 0.7.5",
  "cortex-m-rt",
  "embedded-dma",
  "embedded-hal 0.2.7",
@@ -366,7 +366,7 @@ source = "git+https://github.com/stm32-rs/stm32f4xx-hal.git#cb7cd4e4ad63a0b72e67
 dependencies = [
  "bare-metal 1.0.0",
  "bitflags",
- "cortex-m 0.7.4",
+ "cortex-m 0.7.5",
  "cortex-m-rt",
  "embedded-dma",
  "embedded-hal 0.2.7",
