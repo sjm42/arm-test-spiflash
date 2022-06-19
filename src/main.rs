@@ -14,13 +14,9 @@ use panic_halt as _;
 
 use stm32f4xx_hal as hal;
 
-use hal::delay::Delay;
 use hal::pac::USART1;
-use hal::spi::{Mode, Phase, Polarity};
-use hal::{gpio::*, pac, prelude::*, serial, spi::Spi};
-
-use spi_memory::prelude::*;
-use spi_memory::series25::Flash;
+use hal::{gpio::*, pac, prelude::*, serial, spi::*};
+use spi_memory::{prelude::*, series25::Flash};
 
 const MY_ADDR: u32 = 0x02_08_00;
 
@@ -45,14 +41,14 @@ fn main() -> ! {
 
     // Setup system clock to 72 MHz
     let sysclk = 72;
-    let clocks = rcc.cfgr.sysclk(sysclk.mhz()).freeze();
+    let clocks = rcc.cfgr.sysclk(sysclk.MHz()).freeze();
 
-    // Create a delay abstraction based on SysTick
-    let mut delay = hal::delay::Delay::new(cp.SYST, &clocks);
+    // Create a delay abstraction
+    let mut delay = hal::timer::Timer::syst(cp.SYST, &clocks).delay();
 
     // Clock outputs are as alt functions on MCO1=PA8, MCO2=PC9
-    let _mco1 = pa.pa8.into_alternate::<0>().set_speed(Speed::VeryHigh);
-    let _mco2 = pc.pc9.into_alternate::<0>().set_speed(Speed::VeryHigh);
+    pa.pa8.into_alternate::<0>().set_speed(Speed::VeryHigh);
+    pc.pc9.into_alternate::<0>().set_speed(Speed::VeryHigh);
 
     // On Blackpill stm32f411 user led is on PC13, active low
     let mut led = pc.pc13.into_push_pull_output().erase();
@@ -109,12 +105,14 @@ fn main() -> ! {
                 polarity: Polarity::IdleHigh,
                 phase: Phase::CaptureOnSecondTransition,
             },
-            16.mhz(),
+            16.MHz(),
             &clocks,
         )
     };
-    let spi_delay = Delay::tim5(dp.TIM5, &clocks);
+
     serpr!(ser_tx, "Flash init...\r\n");
+    // Create a delay abstraction based on general-purpose 32-bit timer TIM5
+    let spi_delay = hal::timer::FTimerUs::new(dp.TIM5, &clocks).delay();
     let mut flash = Flash::init(spi, cs, spi_delay).unwrap();
 
     serpr!(ser_tx, "Flash reset...\r\n");
