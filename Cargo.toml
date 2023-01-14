@@ -3,7 +3,7 @@ authors = ["Sami J. Mäkinen <sjm@iki.fi>"]
 edition = "2021"
 readme = "README.md"
 name = "blackpill-spiflash"
-version = "0.1.1"
+version = "0.1.2"
 
 [features]
 default = ["black_pill", "write_flash"]
@@ -13,7 +13,7 @@ write_flash = []
 
 [dependencies.stm32f4xx-hal]
 optional = true
-version = "0.13"
+version = "0.14"
 features = ["rt", "stm32f411"]
 # git = "https://github.com/stm32-rs/stm32f4xx-hal.git"
 
